@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#0e0e12">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Month-End Close Tool — Portfolio Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0e0e12;--s1:#141418;--s2:#1a1a20;--s3:#202028;
+  --b1:#26262e;--b2:#32323e;--b3:#42424e;
+  --txt:#e8e8f0;--txt2:#9898b0;--txt3:#50506a;
+  --teal:#00c4a0;--teal-d:rgba(0,196,160,0.08);
+  --amber:#f5a623;--amber-d:rgba(245,166,35,0.08);
+  --red:#f06060;--red-d:rgba(240,96,96,0.08);
+  --blue:#5b8dee;--blue-d:rgba(91,141,238,0.08);
+  --purple:#a78bfa;--purple-d:rgba(167,139,250,0.08);
+  --mono:'IBM Plex Mono',monospace;
+  --display:'Fraunces',serif;
+  --sans:'Plus Jakarta Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;min-height:100vh;line-height:1.6;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.012) 39px,rgba(255,255,255,0.012) 40px);pointer-events:none;z-index:0;}
+.shell{display:flex;min-height:100vh;position:relative;z-index:1;}
+.sidebar{width:252px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;}
+.logo-area{padding:22px 20px 20px;border-bottom:1px solid var(--b1);}
+.logo-mark{font-family:var(--display);font-size:18px;font-weight:600;color:var(--txt);letter-spacing:-0.3px;}
+.logo-mark em{color:var(--teal);font-style:normal;}
+.logo-period{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:0.1em;text-transform:uppercase;margin-top:3px;}
+.close-progress{padding:16px 20px;border-bottom:1px solid var(--b1);}
+.cp-label{font-family:var(--mono);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.cp-track{height:5px;background:var(--b2);border-radius:3px;overflow:hidden;margin-bottom:6px;}
+.cp-fill{height:100%;background:var(--teal);border-radius:3px;width:0%;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.cp-stats{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--txt3);}
+.cp-pct{color:var(--teal);font-weight:500;}
+.nav-section{padding:12px 10px 4px;}
+.nav-label{font-size:9px;color:var(--txt3);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.12em;padding:0 8px;margin-bottom:4px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--txt2);font-size:12px;transition:all 0.15s;border:1px solid transparent;}
+.nav-item:hover{background:var(--s2);color:var(--txt);}
+.nav-item.active{background:rgba(0,196,160,0.09);color:var(--teal);border-color:rgba(0,196,160,0.18);}
+.nav-icon{width:14px;height:14px;opacity:0.6;flex-shrink:0;}
+.nav-item.active .nav-icon{opacity:1;}
+.nav-count{margin-left:auto;font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:5px;}
+.nc-amber{background:var(--amber-d);color:var(--amber);}
+.sidebar-footer{margin-top:auto;padding:14px 18px;border-top:1px solid var(--b1);}
+.day-counter{font-family:var(--mono);font-size:10px;color:var(--txt3);}
+.day-counter span{color:var(--amber);font-weight:500;}
+.status-pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);color:var(--teal);background:var(--teal-d);border:1px solid rgba(0,196,160,0.2);padding:3px 8px;border-radius:10px;margin-top:6px;}
+.sp-dot{width:4px;height:4px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes gd{0%,80%,100%{opacity:0.2;transform:scale(0.8)}40%{opacity:1;transform:scale(1)}}
+
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.view{display:none;flex:1;flex-direction:column;}
+.view.active{display:flex;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--b1);background:var(--s1);position:sticky;top:0;z-index:10;flex-shrink:0;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.topbar-title{font-family:var(--display);font-size:17px;font-weight:400;font-style:italic;color:var(--txt);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.period-badge{font-family:var(--mono);font-size:10px;color:var(--txt2);background:var(--s2);border:1px solid var(--b2);padding:4px 10px;border-radius:5px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:11px;font-family:var(--mono);cursor:pointer;transition:all 0.15s;border:1px solid transparent;}
+.btn-ghost{background:transparent;border-color:var(--b2);color:var(--txt2);}
+.btn-ghost:hover{border-color:var(--teal);color:var(--teal);}
+.btn-primary{background:var(--teal);color:#0e0e12;border-color:var(--teal);font-weight:500;}
+.btn-primary:hover{background:#00a888;}
+.content{padding:24px 28px;flex:1;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px;}
+.kpi{background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:14px 16px;}
+.kpi-label{font-size:9px;font-family:var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
+.kpi-value{font-family:var(--display);font-size:26px;font-weight:600;color:var(--txt);line-height:1;margin-bottom:3px;}
+.kpi-sub{font-size:10px;font-family:var(--mono);}
+
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.column{background:var(--s1);border:1px solid var(--b1);border-radius:9px;overflow:hidden;}
+.col-header{padding:12px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;}
+.col-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.1em;font-weight:500;}
+.col-count{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:5px;}
+.col-body{padding:10px;display:flex;flex-direction:column;gap:7px;min-height:180px;}
+
+.task-card{background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:11px 12px;cursor:pointer;transition:all 0.15s;}
+.task-card:hover{border-color:var(--b3);background:var(--s3);}
+.task-card.blocked{border-color:rgba(240,96,96,0.25);background:rgba(240,96,96,0.04);}
+.task-card.complete{opacity:0.55;}
+.task-title{font-size:12px;color:var(--txt);font-weight:500;margin-bottom:4px;line-height:1.3;}
+.task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.task-owner{font-family:var(--mono);font-size:9px;color:var(--txt3);}
+.task-due{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:4px;}
+.due-ok{background:var(--teal-d);color:var(--teal);}
+.due-warn{background:var(--amber-d);color:var(--amber);}
+.due-late{background:var(--red-d);color:var(--red);}
+.task-priority{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:0.06em;padding:1px 5px;border-radius:3px;}
+.p-high{background:var(--red-d);color:var(--red);}
+.p-med{background:var(--amber-d);color:var(--amber);}
+.p-low{background:var(--blue-d);color:var(--blue);}
+.blocker-note{font-size:10px;color:var(--red);margin-top:5px;line-height:1.4;font-style:italic;}
+
+.ai-box{background:var(--s1);border:1px solid var(--b1);border-radius:9px;overflow:hidden;margin-bottom:22px;}
+.ai-box-header{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--b1);background:var(--s2);}
+.ai-box-left{display:flex;align-items:center;gap:8px;}
+.ai-chip{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:var(--mono);color:var(--teal);background:var(--teal-d);border:1px solid rgba(0,196,160,0.2);padding:2px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:0.07em;}
+.ai-title{font-size:12px;color:var(--txt);font-weight:500;}
+.ai-body{padding:18px 20px;line-height:1.8;}
+.ai-body p{color:var(--txt2);font-size:13px;margin-bottom:12px;}
+.ai-body p:last-child{margin-bottom:0;}
+.ai-body p strong{color:var(--txt);font-weight:500;}
+.ai-placeholder{padding:28px;text-align:center;color:var(--txt3);font-size:12px;font-family:var(--mono);}
+.generating{padding:20px;display:flex;align-items:center;gap:10px;}
+.gen-dots{display:flex;gap:4px;}
+.gen-dot{width:4px;height:4px;border-radius:50%;background:var(--teal);}
+.gen-dot:nth-child(1){animation:gd 1.2s infinite;}
+.gen-dot:nth-child(2){animation:gd 1.2s 0.15s infinite;}
+.gen-dot:nth-child(3){animation:gd 1.2s 0.3s infinite;}
+.gen-text{font-family:var(--mono);font-size:10px;color:var(--txt3);}
+
+.checklist-section{margin-bottom:20px;}
+.cs-title{font-family:var(--display);font-size:15px;font-weight:400;font-style:italic;color:var(--txt);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--b1);}
+.check-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:7px;transition:background 0.15s;cursor:pointer;}
+.check-item:hover{background:var(--s2);}
+.check-item.done .check-label{text-decoration:line-through;color:var(--txt3);}
+.checkbox{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--b3);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.checkbox.checked{background:var(--teal);border-color:var(--teal);}
+.check-label{font-size:12px;color:var(--txt);line-height:1.4;}
+.check-owner{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:2px;}
+
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
+.chart-card{background:var(--s1);border:1px solid var(--b1);border-radius:9px;padding:18px;}
+.cc-title{font-family:var(--display);font-size:14px;font-weight:400;font-style:italic;color:var(--txt);margin-bottom:3px;}
+.cc-sub{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:14px;}
+.chart-wrap{position:relative;height:200px;}
+
+.page-footer{padding:14px 28px;border-top:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--txt3);flex-shrink:0;}
+.dl-btn{display:inline-flex;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--b2);color:var(--txt2);padding:5px 11px;border-radius:5px;font-size:10px;font-family:var(--mono);cursor:pointer;text-decoration:none;transition:all 0.15s;}
+.dl-btn:hover{border-color:var(--teal);color:var(--teal);}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="sidebar">
+  <div class="logo-area">
+    <div class="logo-mark">Close<em>AI</em></div>
+    <div class="logo-period">June 2024 · Month-end close</div>
+  </div>
+  <div class="close-progress">
+    <div class="cp-label">Overall progress</div>
+    <div class="cp-track"><div class="cp-fill" id="progress-fill"></div></div>
+    <div class="cp-stats">
+      <span id="progress-fraction">16 / 28 tasks</span>
+      <span class="cp-pct" id="progress-pct">57%</span>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Views</div>
+    <div class="nav-item active" id="nav-board" onclick="showView('board')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg>
+      Task board
+    </div>
+    <div class="nav-item" id="nav-checklist" onclick="showView('checklist')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="2,4 4,6 7,2"/><line x1="9" y1="4" x2="13" y2="4"/><polyline points="2,10 4,12 7,8"/><line x1="9" y1="10" x2="13" y2="10"/></svg>
+      Close checklist
+      <span class="nav-count nc-amber">12</span>
+    </div>
+    <div class="nav-item" id="nav-timeline" onclick="showView('timeline')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="12" height="8" rx="1"/><line x1="4" y1="1" x2="4" y2="5"/><line x1="10" y1="1" x2="10" y2="5"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
+      Timeline
+    </div>
+    <div class="nav-item" id="nav-analytics" onclick="showView('analytics')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="1,11 4,7 7,9 10,4 13,6"/></svg>
+      Analytics
+    </div>
+  </div>
+  <div class="nav-section" style="margin-top:8px">
+    <div class="nav-label">Actions</div>
+    <div class="nav-item" onclick="toast('AI status report sent to CFO — connected to email_engine.py')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 3h12v8a1 1 0 01-1 1H2a1 1 0 01-1-1V3z"/><polyline points="1,3 7,8 13,3"/></svg>
+      Email status to CFO
+    </div>
+    <div class="nav-item" onclick="toast('Slack notification sent to #finance-close channel')">
+      <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M5 2a2 2 0 100 4M5 6H1M9 2a2 2 0 100 4M9 6h4M5 8a2 2 0 100 4M5 8H1M9 8a2 2 0 100 4M9 8h4"/></svg>
+      Notify Slack
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="day-counter">Day <span>4</span> of 5 close window</div>
+    <div class="status-pill"><div class="sp-dot"></div>GPT-4o connected</div>
+  </div>
+</nav>
+
+<div class="main">
+
+<!-- BOARD VIEW -->
+<div class="view active" id="view-board">
+  <div class="topbar">
+    <div class="topbar-left"><div class="topbar-title">Task board</div></div>
+    <div class="topbar-right">
+      <div class="period-badge">June 2024 close</div>
+      <div class="btn btn-primary" id="ai-btn" onclick="generateStatus()">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 1l1 2.5 2.5.5-1.8 1.8.5 2.7L5 7.5 2.8 8.5l.5-2.7L1.5 4l2.5-.5z"/></svg>
+        Generate AI status
+      </div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Total tasks</div><div class="kpi-value">28</div><div class="kpi-sub" style="color:var(--txt3)">June close</div></div>
+      <div class="kpi"><div class="kpi-label">Complete</div><div class="kpi-value" style="color:var(--teal)">16</div><div class="kpi-sub" style="color:var(--teal)">57% done</div></div>
+      <div class="kpi"><div class="kpi-label">In progress</div><div class="kpi-value" style="color:var(--blue)">7</div><div class="kpi-sub" style="color:var(--blue)">On track</div></div>
+      <div class="kpi"><div class="kpi-label">Blocked</div><div class="kpi-value" style="color:var(--red)">3</div><div class="kpi-sub" style="color:var(--red)">Need action</div></div>
+      <div class="kpi"><div class="kpi-label">Days left</div><div class="kpi-value" style="color:var(--amber)">1</div><div class="kpi-sub" style="color:var(--amber)">Close window</div></div>
+    </div>
+
+    <div class="board">
+      <div class="column">
+        <div class="col-header"><span class="col-title" style="color:var(--txt3)">Not started</span><span class="col-count" style="background:var(--s3);color:var(--txt3)">2</span></div>
+        <div class="col-body">
+          <div class="task-card" onclick="toast('Board pack PDF assembly — FC Team — Due D+5')">
+            <div class="task-title">Board pack PDF assembly</div>
+            <div class="task-meta"><span class="task-owner">FC Team</span><span class="task-due due-warn">D+5</span><span class="task-priority p-high">High</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Final management accounts sign-off — CFO — Due D+5')">
+            <div class="task-title">Final management accounts sign-off</div>
+            <div class="task-meta"><span class="task-owner">CFO</span><span class="task-due due-warn">D+5</span><span class="task-priority p-high">High</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column">
+        <div class="col-header"><span class="col-title" style="color:var(--blue)">In progress</span><span class="col-count" style="background:var(--blue-d);color:var(--blue)">7</span></div>
+        <div class="col-body">
+          <div class="task-card" onclick="toast('Variance analysis P&L — Sarah M. — Due D+4')">
+            <div class="task-title">Variance analysis — P&L</div>
+            <div class="task-meta"><span class="task-owner">Sarah M.</span><span class="task-due due-ok">D+4</span><span class="task-priority p-high">High</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Intercompany reconciliation — James T. — Due D+4')">
+            <div class="task-title">Intercompany reconciliation</div>
+            <div class="task-meta"><span class="task-owner">James T.</span><span class="task-due due-warn">D+4</span><span class="task-priority p-med">Med</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Accruals review and posting — Priya K.')">
+            <div class="task-title">Accruals review and posting</div>
+            <div class="task-meta"><span class="task-owner">Priya K.</span><span class="task-due due-ok">D+4</span><span class="task-priority p-med">Med</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Fixed asset depreciation run — James T.')">
+            <div class="task-title">Fixed asset depreciation run</div>
+            <div class="task-meta"><span class="task-owner">James T.</span><span class="task-due due-ok">D+3</span><span class="task-priority p-low">Low</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Tax provision calculation — FC Team')">
+            <div class="task-title">Tax provision calculation</div>
+            <div class="task-meta"><span class="task-owner">FC Team</span><span class="task-due due-warn">D+4</span><span class="task-priority p-high">High</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Prepayments schedule update — Priya K.')">
+            <div class="task-title">Prepayments schedule update</div>
+            <div class="task-meta"><span class="task-owner">Priya K.</span><span class="task-due due-ok">D+4</span><span class="task-priority p-low">Low</span></div>
+          </div>
+          <div class="task-card" onclick="toast('Management commentary draft — Sarah M.')">
+            <div class="task-title">Management commentary draft</div>
+            <div class="task-meta"><span class="task-owner">Sarah M.</span><span class="task-due due-warn">D+4</span><span class="task-priority p-high">High</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column">
+        <div class="col-header"><span class="col-title" style="color:var(--red)">Blocked</span><span class="col-count" style="background:var(--red-d);color:var(--red)">3</span></div>
+        <div class="col-body">
+          <div class="task-card blocked" onclick="toast('BLOCKER: Waiting on IT — GL export from SAP not received')">
+            <div class="task-title">Balance sheet reconciliations</div>
+            <div class="task-meta"><span class="task-owner">Sarah M.</span><span class="task-due due-late">Overdue D+3</span><span class="task-priority p-high">High</span></div>
+            <div class="blocker-note">Waiting on IT: GL export from SAP not received</div>
+          </div>
+          <div class="task-card blocked" onclick="toast('BLOCKER: Pending Legal approval on contract amendments')">
+            <div class="task-title">Revenue recognition journals</div>
+            <div class="task-meta"><span class="task-owner">James T.</span><span class="task-due due-late">Overdue D+3</span><span class="task-priority p-high">High</span></div>
+            <div class="blocker-note">Pending approval from Legal re: contract amendments</div>
+          </div>
+          <div class="task-card blocked" onclick="toast('BLOCKER: HR has not confirmed final headcount numbers')">
+            <div class="task-title">Payroll accrual confirmation</div>
+            <div class="task-meta"><span class="task-owner">Priya K.</span><span class="task-due due-late">Overdue D+3</span><span class="task-priority p-med">Med</span></div>
+            <div class="blocker-note">HR hasn't confirmed final headcount numbers</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="column">
+        <div class="col-header"><span class="col-title" style="color:var(--teal)">Complete</span><span class="col-count" style="background:var(--teal-d);color:var(--teal)">16</span></div>
+        <div class="col-body">
+          <div class="task-card complete" onclick="toast('Bank reconciliation — completed by Sarah M. D+1')"><div class="task-title">Bank reconciliation</div><div class="task-meta"><span class="task-owner">Sarah M.</span><span class="task-due due-ok">D+1 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('AP ledger close — completed by James T. D+1')"><div class="task-title">AP ledger close</div><div class="task-meta"><span class="task-owner">James T.</span><span class="task-due due-ok">D+1 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('AR ledger close — completed D+2')"><div class="task-title">AR ledger close</div><div class="task-meta"><span class="task-owner">Priya K.</span><span class="task-due due-ok">D+2 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('Payroll posting — completed D+1')"><div class="task-title">Payroll posting</div><div class="task-meta"><span class="task-owner">Priya K.</span><span class="task-due due-ok">D+1 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('Sales invoicing cut-off — confirmed D+2')"><div class="task-title">Sales invoicing cut-off</div><div class="task-meta"><span class="task-owner">Sarah M.</span><span class="task-due due-ok">D+2 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('Purchase ledger cut-off — confirmed D+2')"><div class="task-title">Purchase ledger cut-off</div><div class="task-meta"><span class="task-owner">James T.</span><span class="task-due due-ok">D+2 ✓</span></div></div>
+          <div class="task-card complete" onclick="toast('Cash flow statement — drafted D+3')"><div class="task-title">Cash flow statement draft</div><div class="task-meta"><span class="task-owner">FC Team</span><span class="task-due due-ok">D+3 ✓</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-box">
+      <div class="ai-box-header">
+        <div class="ai-box-left">
+          <div class="ai-chip"><svg width="6" height="6" viewBox="0 0 6 6" fill="currentColor"><circle cx="3" cy="3" r="2.5"/></svg>GPT-4o</div>
+          <div class="ai-title">AI close status report</div>
+        </div>
+        <div id="copy-btn" style="display:none"><div class="btn btn-ghost" onclick="copyStatus()">Copy</div></div>
+      </div>
+      <div id="status-content"><div class="ai-placeholder">Click "Generate AI status" above to produce a CFO-ready close status update.</div></div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <span>CloseAI · Month-end workflow automation · Built with Python + GPT-4o + Streamlit</span>
+    <a class="dl-btn" href="#" onclick="toast('Exports close pack to Excel');return false;"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 7v1.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5V7M5 1v6M3 5l2 2 2-2"/></svg>Export close pack</a>
+  </div>
+</div>
+
+<!-- CHECKLIST VIEW -->
+<div class="view" id="view-checklist">
+  <div class="topbar">
+    <div class="topbar-left"><div class="topbar-title">Close checklist</div></div>
+    <div class="topbar-right">
+      <div class="period-badge">June 2024 close</div>
+      <div class="btn btn-ghost" onclick="toast('Resets all tasks for next period close — connected to close_engine.py')">New period</div>
+    </div>
+  </div>
+  <div class="content" id="checklist-content"></div>
+  <div class="page-footer"><span>CloseAI · Close checklist · 28 tasks across 5 categories · Click to mark complete</span></div>
+</div>
+
+<!-- TIMELINE VIEW -->
+<div class="view" id="view-timeline">
+  <div class="topbar">
+    <div class="topbar-left"><div class="topbar-title">Close timeline</div></div>
+    <div class="topbar-right"><div class="period-badge">D+1 to D+7 · June 2024</div></div>
+  </div>
+  <div class="content">
+    <div style="display:flex;gap:16px;margin-bottom:16px;font-family:var(--mono);font-size:10px">
+      <span style="color:var(--teal)">■ Complete</span>
+      <span style="color:var(--blue)">■ In progress</span>
+      <span style="color:var(--red)">■ Blocked</span>
+      <span style="color:var(--txt3)">■ Planned</span>
+      <span style="color:var(--amber);margin-left:auto">◀ today = D+4</span>
+    </div>
+    <div id="timeline-content"></div>
+  </div>
+  <div class="page-footer"><span>CloseAI · Timeline · Click any bar to update task status</span></div>
+</div>
+
+<!-- ANALYTICS VIEW -->
+<div class="view" id="view-analytics">
+  <div class="topbar">
+    <div class="topbar-left"><div class="topbar-title">Close analytics</div></div>
+    <div class="topbar-right"><div class="period-badge">Last 6 closes</div></div>
+  </div>
+  <div class="content">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Avg close days</div><div class="kpi-value" style="color:var(--teal)">4.2</div><div class="kpi-sub" style="color:var(--teal)">↓ from 5.8 prev year</div></div>
+      <div class="kpi"><div class="kpi-label">Avg blockers</div><div class="kpi-value" style="color:var(--amber)">3.5</div><div class="kpi-sub" style="color:var(--amber)">Target: &lt;2</div></div>
+      <div class="kpi"><div class="kpi-label">On-time closes</div><div class="kpi-value" style="color:var(--teal)">5/6</div><div class="kpi-sub" style="color:var(--teal)">83% on target</div></div>
+      <div class="kpi"><div class="kpi-label">Tasks per close</div><div class="kpi-value">28</div><div class="kpi-sub" style="color:var(--txt3)">Stable</div></div>
+      <div class="kpi"><div class="kpi-label">Fastest close</div><div class="kpi-value" style="color:var(--teal)">3.5d</div><div class="kpi-sub" style="color:var(--teal)">March 2024</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card"><div class="cc-title">Close duration trend</div><div class="cc-sub">Days taken per period</div><div class="chart-wrap"><canvas id="durationChart"></canvas></div></div>
+      <div class="chart-card"><div class="cc-title">Blockers by root cause</div><div class="cc-sub">Last 6 periods combined</div><div class="chart-wrap"><canvas id="blockersChart"></canvas></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card"><div class="cc-title">Completion by owner — day 3</div><div class="cc-sub">Avg % complete by close D+3</div><div class="chart-wrap"><canvas id="ownerChart"></canvas></div></div>
+      <div class="chart-card"><div class="cc-title">On-time rate by category</div><div class="cc-sub">% tasks completed by due date</div><div class="chart-wrap"><canvas id="categoryChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="page-footer"><span>CloseAI · Analytics · Trend data from last 6 close cycles</span></div>
+</div>
+
+</div>
+</div>
+
+<script>
+const checklistData=[
+  {section:'Day 1–2 · Ledger close',items:[
+    {label:'Close accounts payable ledger',owner:'James T.',done:true},
+    {label:'Close accounts receivable ledger',owner:'Priya K.',done:true},
+    {label:'Process payroll journals',owner:'Priya K.',done:true},
+    {label:'Post bank receipts and payments',owner:'Sarah M.',done:true},
+    {label:'Sales invoicing cut-off confirmed',owner:'Sarah M.',done:true},
+    {label:'Purchase ledger cut-off confirmed',owner:'James T.',done:true},
+  ]},
+  {section:'Day 2–3 · Reconciliations',items:[
+    {label:'Bank reconciliation — all accounts',owner:'Sarah M.',done:true},
+    {label:'Intercompany reconciliation',owner:'James T.',done:false},
+    {label:'Balance sheet reconciliations',owner:'Sarah M.',done:false,blocked:true},
+    {label:'Supplier statement reconciliations',owner:'Priya K.',done:true},
+    {label:'Fixed asset register updated',owner:'James T.',done:true},
+  ]},
+  {section:'Day 3–4 · Journals & adjustments',items:[
+    {label:'Accruals — run and post',owner:'Priya K.',done:false},
+    {label:'Prepayments release',owner:'Priya K.',done:false},
+    {label:'Depreciation run',owner:'James T.',done:false},
+    {label:'Revenue recognition journals',owner:'James T.',done:false,blocked:true},
+    {label:'Payroll accrual — final confirmation',owner:'Priya K.',done:false,blocked:true},
+    {label:'Tax provision calculation',owner:'FC Team',done:false},
+    {label:'FX revaluation posting',owner:'Sarah M.',done:true},
+    {label:'Intercompany eliminations',owner:'FC Team',done:true},
+  ]},
+  {section:'Day 4–5 · Reporting',items:[
+    {label:'P&L variance analysis',owner:'Sarah M.',done:false},
+    {label:'Balance sheet variance analysis',owner:'FC Team',done:true},
+    {label:'Cash flow statement draft',owner:'FC Team',done:true},
+    {label:'Management commentary draft',owner:'Sarah M.',done:false},
+    {label:'KPI dashboard update',owner:'Priya K.',done:true},
+  ]},
+  {section:'Day 5 · Sign-off',items:[
+    {label:'Controller review and sign-off',owner:'FC Lead',done:true},
+    {label:'CFO review — management accounts',owner:'CFO',done:false},
+    {label:'Board pack PDF assembly',owner:'FC Team',done:false},
+    {label:'Final management accounts sign-off',owner:'CFO',done:false},
+  ]},
+];
+
+const timelineTasks=[
+  {label:'Ledger close (AP/AR)',start:0,end:1.5,status:'complete'},
+  {label:'Payroll & bank posting',start:0,end:1.5,status:'complete'},
+  {label:'Bank reconciliation',start:1,end:2,status:'complete'},
+  {label:'Supplier reconciliations',start:1.5,end:2.5,status:'complete'},
+  {label:'Balance sheet recons',start:2,end:3.5,status:'blocked'},
+  {label:'Accruals & prepayments',start:2.5,end:3.5,status:'in-progress'},
+  {label:'Depreciation run',start:2.5,end:3,status:'in-progress'},
+  {label:'Revenue recognition',start:3,end:4,status:'blocked'},
+  {label:'Tax provision',start:3,end:4,status:'in-progress'},
+  {label:'P&L variance analysis',start:3.5,end:4.5,status:'in-progress'},
+  {label:'Management commentary',start:4,end:5,status:'in-progress'},
+  {label:'Controller sign-off',start:4.5,end:5,status:'planned'},
+  {label:'Board pack assembly',start:5,end:6,status:'planned'},
+  {label:'CFO sign-off',start:6,end:7,status:'planned'},
+];
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='checklist')buildChecklist();
+  if(name==='timeline')buildTimeline();
+  if(name==='analytics')buildAnalytics();
+}
+
+function buildChecklist(){
+  const el=document.getElementById('checklist-content');
+  if(el.innerHTML.trim())return;
+  el.innerHTML=checklistData.map(sec=>`
+    <div class="checklist-section">
+      <div class="cs-title">${sec.section}</div>
+      ${sec.items.map(item=>`
+        <div class="check-item ${item.done?'done':''}" onclick="toggleCheck(this)">
+          <div class="checkbox ${item.done?'checked':''}">
+            ${item.done?'<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#0e0e12" stroke-width="2"><polyline points="1,4 3,6 7,2"/></svg>':''}
+          </div>
+          <div>
+            <div class="check-label">${item.blocked?'⚠ ':''}${item.label}</div>
+            <div class="check-owner">${item.owner}${item.blocked?' · BLOCKED':''}</div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function toggleCheck(el){
+  el.classList.toggle('done');
+  const cb=el.querySelector('.checkbox');
+  cb.classList.toggle('checked');
+  cb.innerHTML=cb.classList.contains('checked')?'<svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#0e0e12" stroke-width="2"><polyline points="1,4 3,6 7,2"/></svg>':'';
+}
+
+function buildTimeline(){
+  const el=document.getElementById('timeline-content');
+  if(el.innerHTML.trim())return;
+  const days=['D+1','D+2','D+3','D+4','D+5','D+6','D+7'];
+  const colors={complete:'var(--teal)','in-progress':'var(--blue)',blocked:'var(--red)',planned:'var(--b3)'};
+  const total=7;
+  el.innerHTML=`<div style="background:var(--s1);border:1px solid var(--b1);border-radius:9px;overflow:hidden;margin-bottom:22px">
+    <div style="display:grid;grid-template-columns:190px 1fr;background:var(--s2);border-bottom:1px solid var(--b1)">
+      <div style="padding:10px 14px;border-right:1px solid var(--b1);font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:0.1em">Task</div>
+      <div style="padding:10px 14px;display:flex">${days.map((d,i)=>`<div style="flex:1;font-family:var(--mono);font-size:9px;color:${i===3?'var(--amber)':'var(--txt3)'};text-align:center">${d}</div>`).join('')}</div>
+    </div>
+    ${timelineTasks.map(t=>`
+      <div style="display:grid;grid-template-columns:190px 1fr;border-bottom:1px solid var(--b1);cursor:pointer" onclick="toast('${t.label} · ${t.status} — click to update in production')">
+        <div style="padding:8px 14px;border-right:1px solid var(--b1);font-size:11px;color:var(--txt2);display:flex;align-items:center">${t.label}</div>
+        <div style="position:relative;height:34px">
+          <div style="position:absolute;top:50%;transform:translateY(-50%);left:${t.start/total*100}%;width:${(t.end-t.start)/total*100}%;height:17px;background:${colors[t.status]};opacity:0.72;border-radius:4px;display:flex;align-items:center;padding:0 7px">
+            <span style="font-family:var(--mono);font-size:8px;color:${t.status==='planned'?'var(--txt3)':'#0e0e12'};white-space:nowrap">${t.status}</span>
+          </div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+let analyticsBuilt=false;
+function buildAnalytics(){
+  if(analyticsBuilt)return; analyticsBuilt=true;
+  const base={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#9898b0',font:{family:"'IBM Plex Mono'",size:10},boxWidth:10,padding:10}},
+    tooltip:{backgroundColor:'#1a1a20',borderColor:'#26262e',borderWidth:1,titleColor:'#e8e8f0',bodyColor:'#9898b0',titleFont:{family:"'IBM Plex Mono'",size:10},bodyFont:{family:"'IBM Plex Mono'",size:10},padding:8}},
+    scales:{x:{ticks:{color:'#50506a',font:{family:"'IBM Plex Mono'",size:10}},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#26262e'}},
+    y:{ticks:{color:'#50506a',font:{family:"'IBM Plex Mono'",size:10}},grid:{color:'rgba(255,255,255,0.03)'},border:{color:'#26262e'}}}};
+
+  new Chart(document.getElementById('durationChart'),{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May','Jun'],datasets:[
+    {label:'Days to close',data:[5.5,5.0,3.5,4.5,4.0,4.2],borderColor:'rgba(0,196,160,0.8)',backgroundColor:'rgba(0,196,160,0.07)',borderWidth:2,pointRadius:4,tension:0.35,fill:true},
+    {label:'Target (4d)',data:[4,4,4,4,4,4],borderColor:'rgba(245,166,35,0.5)',borderDash:[4,4],borderWidth:1.5,pointRadius:0}
+  ]},options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>v+'d'}}}}});
+
+  new Chart(document.getElementById('blockersChart'),{type:'doughnut',data:{labels:['IT delays','Data late','Approvals','Staffing','Other'],datasets:[{data:[8,6,5,3,2],backgroundColor:['rgba(240,96,96,0.7)','rgba(245,166,35,0.7)','rgba(91,141,238,0.7)','rgba(167,139,250,0.7)','rgba(80,80,106,0.7)'],borderColor:'#141418',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#9898b0',font:{family:"'IBM Plex Mono'",size:10},padding:10,boxWidth:10}}}}});
+
+  new Chart(document.getElementById('ownerChart'),{type:'bar',data:{labels:['Sarah M.','James T.','Priya K.','FC Team','CFO'],datasets:[{label:'% done by D+3',data:[78,72,85,65,40],backgroundColor:'rgba(0,196,160,0.45)',borderColor:'rgba(0,196,160,0.7)',borderWidth:1,borderRadius:4}]},
+    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>v+'%'}}}}});
+
+  new Chart(document.getElementById('categoryChart'),{type:'bar',data:{labels:['Ledger close','Reconciliations','Journals','Reporting','Sign-off'],datasets:[{label:'On-time %',data:[95,80,72,85,60],backgroundColor:['rgba(0,196,160,0.55)','rgba(91,141,238,0.55)','rgba(245,166,35,0.55)','rgba(0,196,160,0.55)','rgba(240,96,96,0.55)'],borderRadius:4}]},
+    options:{...base,scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>v+'%'}}}}});
+}
+
+const statusText=`The June 2024 month-end close is progressing with 16 of 28 tasks complete (57%) as of Day 4 of the 5-day close window. The overall position is at moderate risk — three tasks are currently blocked and require immediate management intervention to meet the D+5 board pack deadline.
+
+The most critical blocker is the balance sheet reconciliation suite, overdue since D+3 and awaiting a GL extract from IT. This is preventing Sarah M. from completing the reconciliations and directly impacts the management accounts sign-off timeline. The revenue recognition journals (James T.) are also blocked pending Legal sign-off on contract amendments — this item should be escalated to the General Counsel today if approval is not received by midday. The payroll accrual confirmation remains outstanding from HR; Priya K. requires final headcount numbers by end of day.
+
+Seven tasks are actively in progress and on track for D+4 completion, including P&L variance analysis, accruals, depreciation, and management commentary. If all three blockers are resolved today, the close remains achievable by D+5. The CFO is recommended to prioritise review of the IT escalation and Legal approval request before the afternoon stand-up.`;
+
+let statusDone=false;
+function generateStatus(){
+  if(statusDone)return; statusDone=true;
+  const btn=document.getElementById('ai-btn');
+  btn.innerHTML=`<div style="display:flex;align-items:center;gap:5px"><div class="gen-dots"><div class="gen-dot"></div><div class="gen-dot"></div><div class="gen-dot"></div></div>Generating…</div>`;
+  document.getElementById('status-content').innerHTML=`<div class="generating"><div class="gen-dots"><div class="gen-dot"></div><div class="gen-dot"></div><div class="gen-dot"></div></div><div class="gen-text">Analysing 28 tasks · Identifying blockers · Writing CFO status report…</div></div>`;
+  setTimeout(()=>{
+    document.getElementById('status-content').innerHTML=`<div class="ai-body"><p id="ai-typed"></p></div>`;
+    document.getElementById('copy-btn').style.display='block';
+    typeText('ai-typed',statusText);
+    btn.innerHTML=`<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1,5 4,8 9,2"/></svg> Status ready`;
+    btn.style.background='var(--teal)';
+  },2000);
+}
+
+function typeText(id,text){
+  const paras=text.split('\n\n');let pi=0,ci=0;
+  function tick(){
+    if(pi>=paras.length)return;
+    const p=paras[pi];
+    if(ci<=p.length){
+      let h='';
+      for(let i=0;i<pi;i++)h+=`<p>${hl(paras[i])}</p>`;
+      h+=`<p>${hl(p.substring(0,ci))}<span style="border-right:2px solid var(--teal);margin-left:1px">&nbsp;</span></p>`;
+      const el=document.getElementById(id);
+      if(el)el.parentElement.innerHTML=`<div class="ai-body">${h}</div>`;
+      ci++;setTimeout(tick,11);
+    }else{pi++;ci=0;setTimeout(tick,280);}
+  }
+  tick();
+}
+
+function hl(t){return t.replace(/\d+ of \d+ tasks/g,'<strong>$&</strong>').replace(/D\+\d+/g,'<strong>$&</strong>').replace(/\d+%/g,'<strong>$&</strong>');}
+
+function copyStatus(){
+  navigator.clipboard.writeText(statusText).then(()=>{
+    const b=document.querySelector('#copy-btn .btn');b.textContent='Copied!';setTimeout(()=>b.textContent='Copy',2000);
+  });
+}
+
+function toast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:20px;right:20px;background:var(--s2);border:1px solid var(--teal);color:var(--teal);font-family:var(--mono);font-size:10px;padding:9px 14px;border-radius:6px;z-index:999;transition:opacity 0.3s;max-width:340px;line-height:1.4';
+  t.textContent='✓ '+msg;document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},2600);
+}
+
+setTimeout(()=>{document.getElementById('progress-fill').style.width='57%';},300);
+</script>
+</body>
+</html>
