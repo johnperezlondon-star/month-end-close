@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#0e0e12">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Month-End Close Tool — John Perez</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Fraunces:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0e0e12;--bg2:#141418;--bg3:#1a1a20;
+  --border:rgba(255,255,255,0.05);--border2:rgba(255,255,255,0.09);
+  --txt:#e8e8f0;--txt2:#8080a0;--txt3:#404058;
+  --teal:#00c4a0;--teal-d:rgba(0,196,160,0.08);
+  --amber:#f5a623;--red:#f06060;--blue:#5b8dee;
+  --mono:'IBM Plex Mono',monospace;
+  --display:'Fraunces',serif;
+  --body:'Plus Jakarta Sans',sans-serif;
+}
+html{background:var(--bg);scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--txt);font-family:var(--body);font-size:16px;line-height:1.6;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 47px,rgba(255,255,255,0.015) 47px,rgba(255,255,255,0.015) 48px),repeating-linear-gradient(90deg,transparent,transparent 47px,rgba(255,255,255,0.008) 47px,rgba(255,255,255,0.008) 48px);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:500px;background:radial-gradient(ellipse,rgba(0,196,160,0.06) 0%,transparent 70%);pointer-events:none;z-index:0;}
+.wrap{position:relative;z-index:1;max-width:1060px;margin:0 auto;padding:0 28px;}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:15px 0;border-bottom:1px solid var(--border);background:rgba(14,14,18,0.88);backdrop-filter:blur(12px);}
+.nav-inner{max-width:1060px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{font-family:var(--display);font-size:15px;font-weight:600;color:var(--txt);text-decoration:none;}
+.nav-logo em{color:var(--teal);font-style:normal;}
+.nav-links{display:flex;align-items:center;gap:22px;list-style:none;}
+.nav-links a{font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--txt);}
+.nav-cta{background:var(--teal)!important;color:#0e0e12!important;padding:7px 15px!important;border-radius:6px!important;font-weight:500!important;transition:opacity 0.2s!important;}
+.nav-cta:hover{opacity:0.85!important;}
+
+.hero{padding:148px 0 88px;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--teal);background:var(--teal-d);border:1px solid rgba(0,196,160,0.2);padding:4px 11px;border-radius:20px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:22px;opacity:0;animation:fu 0.6s 0.1s forwards;}
+.e-dot{width:4px;height:4px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.hero-title{font-family:var(--display);font-size:clamp(38px,7vw,74px);font-weight:700;line-height:1.0;letter-spacing:-2px;color:var(--txt);margin-bottom:18px;opacity:0;animation:fu 0.6s 0.2s forwards;}
+.hero-title .l2{display:block;color:var(--txt2);font-weight:300;font-style:italic;font-size:clamp(26px,5vw,52px);letter-spacing:-1px;}
+.hero-title .ac{color:var(--teal);}
+.hero-desc{font-size:16px;color:var(--txt2);max-width:500px;line-height:1.7;margin-bottom:34px;font-weight:300;opacity:0;animation:fu 0.6s 0.3s forwards;}
+.hero-desc strong{color:var(--txt);font-weight:400;}
+.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;opacity:0;animation:fu 0.6s 0.4s forwards;}
+.btn-main{display:inline-flex;align-items:center;gap:7px;background:var(--teal);color:#0e0e12;font-family:var(--mono);font-size:12px;font-weight:500;padding:12px 22px;border-radius:7px;text-decoration:none;transition:all 0.2s;border:1px solid var(--teal);}
+.btn-main:hover{opacity:0.85;transform:translateY(-1px);}
+.btn-outline{display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--txt2);font-family:var(--mono);font-size:12px;padding:12px 22px;border-radius:7px;text-decoration:none;transition:all 0.2s;border:1px solid var(--border2);}
+.btn-outline:hover{color:var(--txt);border-color:var(--txt2);transform:translateY(-1px);}
+
+.stat-strip{display:flex;margin-top:60px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);overflow:hidden;opacity:0;animation:fu 0.6s 0.5s forwards;}
+.stat{flex:1;padding:18px 22px;border-right:1px solid var(--border);}
+.stat:last-child{border-right:none;}
+.stat-value{font-family:var(--display);font-size:26px;font-weight:600;color:var(--txt);line-height:1;margin-bottom:4px;letter-spacing:-0.5px;}
+.stat-value .u{font-size:14px;color:var(--teal);}
+.stat-label{font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:0.09em;}
+
+section{padding:84px 0;}
+.divider{height:1px;background:var(--border);}
+.section-tag{font-family:var(--mono);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;}
+.section-title{font-family:var(--display);font-size:clamp(24px,4vw,38px);font-weight:600;letter-spacing:-0.8px;color:var(--txt);margin-bottom:12px;line-height:1.1;}
+.section-sub{font-size:15px;color:var(--txt2);font-weight:300;max-width:460px;line-height:1.7;}
+
+.features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-top:44px;}
+.feat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:22px;transition:border-color 0.2s;}
+.feat-card:hover{border-color:var(--border2);}
+.feat-card.hi{border-color:rgba(0,196,160,0.22);background:rgba(0,196,160,0.04);}
+.fi{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.fi-teal{background:var(--teal-d);color:var(--teal);}
+.fi-amber{background:rgba(245,166,35,0.1);color:var(--amber);}
+.fi-blue{background:rgba(91,141,238,0.1);color:var(--blue);}
+.fi-red{background:rgba(240,96,96,0.1);color:var(--red);}
+.ft{font-family:var(--display);font-size:16px;font-weight:600;color:var(--txt);margin-bottom:6px;letter-spacing:-0.2px;}
+.fb{font-size:13px;color:var(--txt2);line-height:1.6;font-weight:300;}
+
+.views-section{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.views-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:44px;}
+.view-card{padding:22px 18px;border-right:1px solid var(--border);}
+.view-card:last-child{border-right:none;}
+.vc-num{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:0.1em;margin-bottom:12px;}
+.vc-title{font-family:var(--display);font-size:16px;font-weight:600;color:var(--txt);margin-bottom:8px;letter-spacing:-0.2px;}
+.vc-body{font-size:12px;color:var(--txt2);line-height:1.5;font-weight:300;}
+
+.output-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:44px;}
+.ob-header{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--bg3);}
+.tl-row{display:flex;gap:5px;}
+.tl{width:8px;height:8px;border-radius:50%;}
+.tl-r{background:#ef4444;opacity:0.4;}.tl-y{background:var(--amber);opacity:0.4;}.tl-g{background:var(--teal);opacity:0.4;}
+.ob-fname{font-family:var(--mono);font-size:10px;color:var(--txt3);}
+.ob-body{padding:20px 24px;}
+.ob-label{font-family:var(--mono);font-size:9px;color:var(--teal);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:11px;display:flex;align-items:center;gap:7px;}
+.ob-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.ob-text{font-size:13px;color:var(--txt2);line-height:1.8;font-style:italic;font-weight:300;}
+.ob-text strong{color:var(--txt);font-style:normal;font-weight:400;}
+
+.skills-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:44px;}
+.sk{display:flex;align-items:flex-start;gap:11px;padding:16px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;transition:border-color 0.2s;}
+.sk:hover{border-color:var(--border2);}
+.s-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);margin-top:7px;flex-shrink:0;}
+.s-area{font-family:var(--display);font-size:13px;font-weight:600;color:var(--txt);margin-bottom:3px;}
+.s-detail{font-size:12px;color:var(--txt2);font-weight:300;line-height:1.5;}
+
+.stack-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:32px;}
+.sb{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--txt2);background:var(--bg2);border:1px solid var(--border);padding:6px 12px;border-radius:6px;transition:all 0.2s;}
+.sb:hover{border-color:var(--border2);color:var(--txt);}
+.sdot{width:5px;height:5px;border-radius:50%;}
+
+.cta-sec{text-align:center;padding:84px 0;position:relative;}
+.cta-sec::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:380px;background:radial-gradient(ellipse,rgba(0,196,160,0.07) 0%,transparent 70%);pointer-events:none;}
+.cta-title{font-family:var(--display);font-size:clamp(28px,5vw,50px);font-weight:700;letter-spacing:-1.2px;color:var(--txt);margin-bottom:12px;line-height:1.1;}
+.cta-sub{font-size:15px;color:var(--txt2);font-weight:300;margin-bottom:30px;}
+.cta-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+
+footer{border-top:1px solid var(--border);padding:26px 0;}
+.footer-inner{max-width:1060px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.footer-left{font-family:var(--mono);font-size:10px;color:var(--txt3);}
+.footer-right{display:flex;gap:16px;}
+.footer-right a{font-family:var(--mono);font-size:10px;color:var(--txt3);text-decoration:none;transition:color 0.2s;}
+.footer-right a:hover{color:var(--txt2);}
+
+@keyframes fu{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.reveal{opacity:0;transform:translateY(20px);transition:opacity 0.6s ease,transform 0.6s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+@media(max-width:768px){.features-grid{grid-template-columns:1fr;}.views-grid{grid-template-columns:1fr 1fr;}.views-grid .view-card:nth-child(2n){border-right:none;}.skills-grid{grid-template-columns:1fr;}.stat-strip{flex-direction:column;}.stat{border-right:none;border-bottom:1px solid var(--border);}.stat:last-child{border-bottom:none;}.nav-links{display:none;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Close<em>AI</em></a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#views">Views</a></li>
+      <li><a href="#output">Output</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="app_demo.html" class="nav-cta">Live demo →</a></li>
+    </ul>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow"><div class="e-dot"></div>Finance AI · Portfolio project</div>
+    <h1 class="hero-title">
+      Month-End Close<br>
+      <span class="l2"><span class="ac">Automated.</span> Tracked. Signed off.</span>
+    </h1>
+    <p class="hero-desc">
+      A <strong>full workflow management tool</strong> for the finance close. Task board, close checklist, timeline, and analytics — with GPT-4o generating a CFO-ready status report from live task data.
+    </p>
+    <div class="hero-actions">
+      <a href="app_demo.html" class="btn-main"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,1 11,6 2,11"/></svg>View live demo</a>
+      <a href="https://github.com/johnperezlondon-star/month-end-close" target="_blank" class="btn-outline"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0C2.7 0 0 2.7 0 6c0 2.65 1.72 4.9 4.1 5.7.3.06.41-.13.41-.3v-1.05C2.85 10.7 2.5 9.7 2.5 9.7c-.28-.72-.68-.91-.68-.91-.56-.38.04-.37.04-.37.62.04.95.64.95.64.55.94 1.44.67 1.79.51.06-.4.21-.67.39-.82C3.7 8.65 2.3 8.17 2.3 5.82c0-.64.23-1.17.6-1.58-.06-.15-.26-.75.06-1.56 0 0 .49-.16 1.6.6A5.57 5.57 0 016 3.03c.56 0 1.12.07 1.65.22 1.11-.75 1.6-.6 1.6-.6.32.81.12 1.41.06 1.56.37.41.6.94.6 1.58 0 2.35-1.43 2.87-2.8 3.02.22.19.42.56.42 1.13v1.68c0 .17.11.37.42.31C10.28 10.9 12 8.65 12 6c0-3.3-2.7-6-6-6z"/></svg>View on GitHub</a>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><div class="stat-value">4<span class="u"> views</span></div><div class="stat-label">In one tool</div></div>
+      <div class="stat"><div class="stat-value">28<span class="u"> tasks</span></div><div class="stat-label">Tracked per close</div></div>
+      <div class="stat"><div class="stat-value">5<span class="u">d</span></div><div class="stat-label">Close window managed</div></div>
+      <div class="stat"><div class="stat-value">GPT<span class="u">-4o</span></div><div class="stat-label">Status narrative</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="section-tag">What it does</div>
+      <h2 class="section-title">Everything a close needs</h2>
+      <p class="section-sub">A single platform that replaces spreadsheet checklists, status email chains, and manual CFO updates — all driven by live task data.</p>
+    </div>
+    <div class="features-grid reveal">
+      <div class="feat-card hi">
+        <div class="fi fi-teal"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 1l1.2 3 3 .4-2.2 2 .5 3L7 8 4.5 9.4l.5-3L2.8 4.4l3-.4z"/></svg></div>
+        <div class="ft">AI status generation</div>
+        <div class="fb">GPT-4o reads the live task board and writes a formal CFO update in seconds — naming blockers, owners, and recommended escalation actions.</div>
+      </div>
+      <div class="feat-card">
+        <div class="fi fi-amber"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg></div>
+        <div class="ft">Kanban task board</div>
+        <div class="fb">28 close tasks tracked across Not Started, In Progress, Blocked, and Complete. Blocker notes show root cause. One-click task updates.</div>
+      </div>
+      <div class="feat-card">
+        <div class="fi fi-blue"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="2,4 4,6 7,2"/><line x1="9" y1="4" x2="13" y2="4"/><polyline points="2,10 4,12 7,8"/><line x1="9" y1="10" x2="13" y2="10"/></svg></div>
+        <div class="ft">Close checklist</div>
+        <div class="fb">28 tasks across 5 categories with owner, due date, and blocker flag. Reusable across periods — click "New period" to reset for next month.</div>
+      </div>
+      <div class="feat-card">
+        <div class="fi fi-red"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="1,11 4,7 7,9 10,4 13,6"/></svg></div>
+        <div class="ft">Analytics dashboard</div>
+        <div class="fb">Six-period trend data showing close duration, blocker root causes, completion by owner, and on-time rate by category. Identifies systemic issues.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="views" class="views-section">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="section-tag">Four views</div>
+      <h2 class="section-title">One tool, every perspective</h2>
+      <p class="section-sub">Different stakeholders need different views of the same close data. The tool surfaces all of them from a single data model.</p>
+    </div>
+    <div class="views-grid reveal">
+      <div class="view-card" style="background:var(--bg3)">
+        <div class="vc-num">01 / Task board</div>
+        <div class="vc-title">Kanban board</div>
+        <div class="vc-body">Four-column layout. Real-time task status. Blocker notes with root cause. AI status generation button. Designed for daily stand-ups.</div>
+      </div>
+      <div class="view-card" style="background:var(--bg3)">
+        <div class="vc-num">02 / Checklist</div>
+        <div class="vc-title">Close checklist</div>
+        <div class="vc-body">Linear task list with checkboxes. Organised by close day. Owner and blocker flags. Click to mark complete. Resets for each period.</div>
+      </div>
+      <div class="view-card" style="background:var(--bg3)">
+        <div class="vc-num">03 / Timeline</div>
+        <div class="vc-title">Gantt timeline</div>
+        <div class="vc-body">D+1 to D+7 horizontal bar chart. Tasks coloured by status. Today marker. Shows scheduling conflicts and critical path at a glance.</div>
+      </div>
+      <div class="view-card" style="background:var(--bg3)">
+        <div class="vc-num">04 / Analytics</div>
+        <div class="vc-title">Trend analytics</div>
+        <div class="vc-body">Six-month KPI trends. Close duration vs target. Blocker root cause donut. Completion by owner bar chart. On-time rate by category.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="output">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="section-tag">Sample output</div>
+      <h2 class="section-title">CFO-ready in seconds</h2>
+      <p class="section-sub">GPT-4o reads the live task board and produces a formal status update. No templates, no manual writing — just paste into your email.</p>
+    </div>
+    <div class="output-box reveal">
+      <div class="ob-header"><div class="tl-row"><div class="tl tl-r"></div><div class="tl tl-y"></div><div class="tl tl-g"></div></div><div class="ob-fname">close_status_june_2024_d4.txt — generated by GPT-4o</div></div>
+      <div class="ob-body">
+        <div class="ob-label">CFO status update — Day 4 of 5</div>
+        <div class="ob-text">
+          <p>The June 2024 month-end close is progressing with <strong>16 of 28 tasks complete (57%)</strong> as of <strong>Day 4</strong> of the 5-day close window. The overall position is at moderate risk — three tasks are currently blocked and require immediate management intervention to meet the <strong>D+5</strong> board pack deadline.</p>
+          <br>
+          <p>The most critical blocker is the balance sheet reconciliation suite, overdue since D+3, awaiting a GL extract from IT. The revenue recognition journals are also blocked pending Legal sign-off on contract amendments — this item should be escalated to the General Counsel today if approval is not received by midday. The payroll accrual confirmation remains outstanding from HR.</p>
+          <br>
+          <p>Seven tasks are actively in progress and on track for D+4 completion. If all three blockers are resolved today, the close remains achievable by <strong>D+5</strong>. The CFO is recommended to prioritise review of the IT escalation and Legal approval request before the afternoon stand-up.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="skills">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="section-tag">Skills demonstrated</div>
+      <h2 class="section-title">What this project shows</h2>
+      <p class="section-sub">Different from the other two tools — this one is about workflow design, process thinking, and AI-assisted communication rather than data matching.</p>
+    </div>
+    <div class="skills-grid reveal">
+      <div class="sk"><div class="s-dot"></div><div><div class="s-area">Finance process design</div><div class="s-detail">Month-end close workflow · Task sequencing · Blocker management · D+n scheduling · CFO communication</div></div></div>
+      <div class="sk"><div class="s-dot" style="background:var(--teal)"></div><div><div class="s-area">Python / Streamlit</div><div class="s-detail">Task state management · Period reset logic · Multi-view UI · Email dispatch · Slack webhook integration</div></div></div>
+      <div class="sk"><div class="s-dot" style="background:var(--amber)"></div><div><div class="s-area">AI / prompt engineering</div><div class="s-detail">GPT-4o status generation · Blocker-first narrative · Escalation recommendation · Tone calibration for CFO audience</div></div></div>
+      <div class="sk"><div class="s-dot" style="background:var(--blue)"></div><div><div class="s-area">Product thinking</div><div class="s-detail">Four distinct views for different stakeholders · Kanban + Gantt + Checklist + Analytics in one cohesive tool</div></div></div>
+    </div>
+    <div class="stack-row reveal">
+      <div class="sb"><div class="sdot" style="background:#3776ab"></div>Python 3.10</div>
+      <div class="sb"><div class="sdot" style="background:#412991"></div>OpenAI GPT-4o</div>
+      <div class="sb"><div class="sdot" style="background:#ff4b4b"></div>Streamlit</div>
+      <div class="sb"><div class="sdot" style="background:#150458"></div>Pandas</div>
+      <div class="sb"><div class="sdot" style="background:#f34f29"></div>GitHub Pages</div>
+      <div class="sb"><div class="sdot" style="background:#36c5f0"></div>Slack API</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section class="cta-sec">
+  <div class="wrap">
+    <div class="reveal">
+      <h2 class="cta-title">See the full close in action</h2>
+      <p class="cta-sub">Task board pre-loaded with June 2024 close data. Click any tab.</p>
+      <div class="cta-actions">
+        <a href="app_demo.html" class="btn-main"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,1 11,6 2,11"/></svg>Open live demo</a>
+        <a href="https://github.com/johnperezlondon-star/month-end-close" target="_blank" class="btn-outline"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0C2.7 0 0 2.7 0 6c0 2.65 1.72 4.9 4.1 5.7.3.06.41-.13.41-.3v-1.05C2.85 10.7 2.5 9.7 2.5 9.7c-.28-.72-.68-.91-.68-.91-.56-.38.04-.37.04-.37.62.04.95.64.95.64.55.94 1.44.67 1.79.51.06-.4.21-.67.39-.82C3.7 8.65 2.3 8.17 2.3 5.82c0-.64.23-1.17.6-1.58-.06-.15-.26-.75.06-1.56 0 0 .49-.16 1.6.6A5.57 5.57 0 016 3.03c.56 0 1.12.07 1.65.22 1.11-.75 1.6-.6 1.6-.6.32.81.12 1.41.06 1.56.37.41.6.94.6 1.58 0 2.35-1.43 2.87-2.8 3.02.22.19.42.56.42 1.13v1.68c0 .17.11.37.42.31C10.28 10.9 12 8.65 12 6c0-3.3-2.7-6-6-6z"/></svg>Browse the code</a>
+      </div>
+      <div style="margin-top:24px;font-family:var(--mono);font-size:11px;color:var(--txt3)">
+        Part of a 3-project Finance AI portfolio —
+        <a href="https://johnperezlondon-star.github.io/variance-analyser/" style="color:var(--teal);text-decoration:none">Variance Analyser</a> ·
+        <a href="https://johnperezlondon-star.github.io/recon-ai/" style="color:var(--teal);text-decoration:none">Reconciliation Tool</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">Built by John Perez · Finance AI Portfolio · 2024</div>
+    <div class="footer-right">
+      <a href="https://github.com/johnperezlondon-star" target="_blank">GitHub</a>
+      <a href="app_demo.html">Live demo</a>
+      <a href="https://johnperezlondon-star.github.io/variance-analyser/">Variance Analyser →</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const obs=new IntersectionObserver(e=>{e.forEach((el,i)=>{if(el.isIntersecting)setTimeout(()=>el.target.classList.add('visible'),i*80);});},{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>
